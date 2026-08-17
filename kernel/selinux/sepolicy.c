@@ -751,7 +751,7 @@ static bool add_type(struct policydb *db, const char *type_name, bool attr)
     }
 
     db->type_attr_map_array = new_type_attr_map_array;
-    ebitmap_init(&db->type_attr_map_array[value - 1]);
+    KSU_COMPAT_EBITMAP_INIT(&db->type_attr_map_array[value - 1]);
     ebitmap_set_bit(&db->type_attr_map_array[value - 1], value - 1, 1);
 
     db->type_val_to_struct = new_type_val_to_struct;
@@ -893,7 +893,7 @@ static bool add_type(struct policydb *db, const char *type_name, bool attr)
 #if defined(KSU_COMPAT_IS_HISI_LEGACY_HM2)
     ebitmap_init(flex_array_get(db->type_attr_map_array, value - 1), HISI_SELINUX_EBITMAP_RO);
 #else
-    ebitmap_init(flex_array_get(db->type_attr_map_array, value - 1));
+    KSU_COMPAT_EBITMAP_INIT(flex_array_get(db->type_attr_map_array, value - 1));
 #endif
     ebitmap_set_bit(flex_array_get(db->type_attr_map_array, value - 1), value - 1, 1);
 
