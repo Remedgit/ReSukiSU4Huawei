@@ -289,8 +289,11 @@ static inline u64 ksu_ktime_get_ns(void)
 
 extern void ksu_run_in_init_if_possible(void (*callback)(void *), void *data);
 
-#if defined(CONFIG_KEYS) && (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) || defined(KSU_COMPAT_IS_HISI_LEGACY) ||    \
-                             defined(KSU_COMPAT_IS_HISI_LEGACY_HM2))
+/* Android F2FS encryption on this Huawei 5.10 tree needs init's keyring. */
+#if defined(CONFIG_KEYS) &&                                                                                              \
+    (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) || defined(KSU_COMPAT_IS_HISI_LEGACY) ||                            \
+     defined(KSU_COMPAT_IS_HISI_LEGACY_HM2) || defined(KSU_COMPAT_IS_HISI_HM2) ||                                      \
+     (defined(CONFIG_ANDROID) && defined(CONFIG_F2FS_FS_ENCRYPTION)))
 #define KSU_COMPAT_REQUIRE_SESSION_KEYRING
 extern void setup_ksu_cred_session_keyring(void);
 #endif

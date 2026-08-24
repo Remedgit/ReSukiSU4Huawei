@@ -464,11 +464,13 @@ void do_persistent_allow_list(void *unused)
     loff_t off = 0;
     int i;
 
-    const struct cred *saved = override_creds(ksu_cred);
+    /*
+     * This callback runs in init. Keep init's credentials so Huawei F2FS can
+     * resolve the per-process encryption key when opening /data.
+     */
     fp = filp_open(KERNEL_SU_ALLOWLIST, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (IS_ERR(fp)) {
         pr_err("save_allow_list create file failed: %ld\n", PTR_ERR(fp));
-        revert_creds(saved);
         return;
     }
 
@@ -493,7 +495,6 @@ void do_persistent_allow_list(void *unused)
     mutex_unlock(&allowlist_mutex);
 
 out:
-    revert_creds(saved);
     filp_close(fp, 0);
 }
 
@@ -505,6 +506,11 @@ void do_ksu_load_allow_list(void *unused)
     u32 magic;
     u32 version;
     size_t app_profile_size;
+
+    // This callback runs in init after /data is available, so its keyring is ready.
+#ifdef KSU_COMPAT_REQUIRE_SESSION_KEYRING
+    setup_ksu_cred_session_keyring();
+#endif
 
     // load allowlist now!
     fp = filp_open(KERNEL_SU_ALLOWLIST, O_RDONLY, 0);

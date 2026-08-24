@@ -218,17 +218,28 @@ extern int install_session_keyring_to_cred(struct cred *, struct key *);
 // in our target kernel version, it are protected by rcu, so let's rcu_dereference here
 void setup_ksu_cred_session_keyring(void)
 {
-    if (ksu_get_session_keyring(ksu_cred)) {
-        // if we have session_keyring, skip
-        return;
-    }
+    struct key *init_keyring;
 
     if (strcmp(current->comm, "init")) {
-        // we are only interested in `init` process
+        pr_warn("kernel_compat: skip session keyring sync outside init: %s\n", current->comm);
         return;
     }
 
-    install_session_keyring_to_cred(ksu_cred, ksu_get_session_keyring(current_cred()));
+    init_keyring = ksu_get_session_keyring(current_cred());
+    if (!init_keyring) {
+        pr_info("kernel_compat: init session_keyring is not ready\n");
+        return;
+    }
+
+    if (ksu_get_session_keyring(ksu_cred) == init_keyring) {
+        pr_info("kernel_compat: ksu_cred already has init session_keyring\n");
+        return;
+    }
+
+    if (install_session_keyring_to_cred(ksu_cred, init_keyring)) {
+        pr_err("kernel_compat: install init_session_keyring failed\n");
+        return;
+    }
 
     pr_info("kernel_compat: %s: install init_session_keyring to ksu_cred\n", __func__);
 }
