@@ -204,8 +204,10 @@ extern int install_session_keyring_to_cred(struct cred *, struct key *);
 
 void setup_ksu_cred_session_keyring(void)
 {
-    if (ksu_get_session_keyring(ksu_cred)) {
-        // if we have session_keyring, skip
+    struct key *init_keyring;
+
+    if (strcmp(current->comm, "init")) {
+        pr_warn("kernel_compat: skip session keyring sync outside init: %s\n", current->comm);
         return;
     }
 

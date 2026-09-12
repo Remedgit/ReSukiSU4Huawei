@@ -34,6 +34,19 @@
 * Leagcy Huawei Hisi Devices info End
 */
 
+/*
+ * Huawei/Honor modified ebitmap.h (HISI/HKIP selinux) changes
+ * ebitmap_init() to take a protectable argument, adapt without
+ * affecting other kernels.
+ * Note: HKIP_SELINUX_EBITMAP_RO is defined unconditionally in Huawei's
+ * ebitmap.h, only its value depends on CONFIG_HKIP_SELINUX_PROT.
+ */
+#if defined(HISI_SELINUX_EBITMAP_RO) || defined(HKIP_SELINUX_EBITMAP_RO)
+#define KSU_COMPAT_EBITMAP_INIT(e) ebitmap_init(e, false)
+#else
+#define KSU_COMPAT_EBITMAP_INIT(e) ebitmap_init(e)
+#endif
+
 // Checks for UH, KDP and RKP
 #ifdef SAMSUNG_UH_DRIVER_EXIST
 #if defined(CONFIG_UH) || defined(CONFIG_KDP) || defined(CONFIG_RKP)
@@ -276,8 +289,11 @@ static inline u64 ksu_ktime_get_ns(void)
 
 extern void ksu_run_in_init_if_possible(void (*callback)(void *), void *data);
 
-#if defined(CONFIG_KEYS) && (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) || defined(KSU_COMPAT_IS_HISI_LEGACY) ||    \
-                             defined(KSU_COMPAT_IS_HISI_LEGACY_HM2))
+/* Android F2FS encryption on this Huawei 5.10 tree needs init's keyring. */
+#if defined(CONFIG_KEYS) &&                                                                                              \
+    (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) || defined(KSU_COMPAT_IS_HISI_LEGACY) ||                            \
+     defined(KSU_COMPAT_IS_HISI_LEGACY_HM2) || defined(KSU_COMPAT_IS_HISI_HM2) ||                                      \
+     (defined(CONFIG_ANDROID) && defined(CONFIG_F2FS_FS_ENCRYPTION)))
 #define KSU_COMPAT_REQUIRE_SESSION_KEYRING
 #include <linux/key.h>
 
