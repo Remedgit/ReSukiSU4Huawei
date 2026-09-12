@@ -9,6 +9,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/errno.h>
 
 #include "klog.h" // IWYU pragma: keep
 #include "kernel_compat.h"
@@ -196,26 +197,11 @@ put_task:
 }
 
 #ifdef KSU_COMPAT_REQUIRE_SESSION_KEYRING
-#include <linux/key.h>
-#include <linux/errno.h>
-#include <linux/cred.h>
 #include "ksu.h"
 
-static inline struct key *ksu_get_session_keyring(const struct cred *cred)
-{
-// https://github.com/torvalds/linux/commit/3a50597de8635cd05133bd12c95681c82fe7b878
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)
-    return rcu_dereference(cred->session_keyring);
-#else
-    return rcu_dereference(current->cred->tgcred->session_keyring);
-#endif
-}
-
+struct key *init_session_keyring = NULL;
 extern int install_session_keyring_to_cred(struct cred *, struct key *);
 
-// WARNING! Make sure caller in init!!!
-// https://github.com/torvalds/linux/commit/5c7e372caa35d303e414caeb64ee2243fd3cac3d
-// in our target kernel version, it are protected by rcu, so let's rcu_dereference here
 void setup_ksu_cred_session_keyring(void)
 {
     struct key *init_keyring;
@@ -225,21 +211,12 @@ void setup_ksu_cred_session_keyring(void)
         return;
     }
 
-    init_keyring = ksu_get_session_keyring(current_cred());
-    if (!init_keyring) {
-        pr_info("kernel_compat: init session_keyring is not ready\n");
+    if (init_session_keyring == NULL) {
+        // if init_session_keyring is null, skip
         return;
     }
 
-    if (ksu_get_session_keyring(ksu_cred) == init_keyring) {
-        pr_info("kernel_compat: ksu_cred already has init session_keyring\n");
-        return;
-    }
-
-    if (install_session_keyring_to_cred(ksu_cred, init_keyring)) {
-        pr_err("kernel_compat: install init_session_keyring failed\n");
-        return;
-    }
+    install_session_keyring_to_cred(ksu_cred, init_session_keyring);
 
     pr_info("kernel_compat: %s: install init_session_keyring to ksu_cred\n", __func__);
 }
