@@ -6,6 +6,9 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import com.materialkolor.PaletteStyle
+import com.materialkolor.dynamiccolor.ColorSpec
+import com.resukisu.resukisu.Natives
 import com.resukisu.resukisu.data.AppSettingsRepository
 import com.resukisu.resukisu.data.shell.KsuCliRepository
 import com.resukisu.resukisu.data.theme.ThemeRepository
@@ -80,6 +83,9 @@ class SettingsPlatformRepository(
             checkModuleUpdate = loadModuleUpdatePreference(),
             autoJailbreakEnabled = settings.getBoolean("auto_jailbreak", false),
             useBuiltinMonoFont = themeConfig.useBuiltinMonoFont,
+            useSoftReboot = settings.getBoolean("use_soft_reboot", false),
+            enableSwipeDismiss = settings.getBoolean("enable_swipe_dismiss", true),
+            pagerInterceptionMode = settings.getInt("pager_interception_mode", 1).coerceIn(0, 2),
         )
     }
 
@@ -186,6 +192,15 @@ class SettingsPlatformRepository(
                 settings.putBoolean("use_builtin_monospace_font", setting.enabled)
                 themeConfig.useBuiltinMonoFont = setting.enabled
             }
+
+            is PlatformSetting.UseSoftReboot ->
+                settings.putBoolean("use_soft_reboot", setting.enabled)
+
+            is PlatformSetting.SwipeDismiss ->
+                settings.putBoolean("enable_swipe_dismiss", setting.enabled)
+
+            is PlatformSetting.PagerInterceptionMode ->
+                settings.putInt("pager_interception_mode", setting.value.coerceIn(0, 2))
         }
         Result.success(load())
     } catch (error: CancellationException) {
@@ -193,6 +208,10 @@ class SettingsPlatformRepository(
     } catch (error: Exception) {
         Result.failure(error)
     }
+
+    fun isSoftRebootPreferred(): Boolean =
+        Natives.isFullFeatured() &&
+            (Natives.isLateLoadMode || settings.getBoolean("use_soft_reboot", false))
 
     suspend fun getFeatureStatus(): PlatformFeatureStatus = withContext(Dispatchers.IO) {
         PlatformFeatureStatus(
@@ -288,8 +307,8 @@ class SettingsPlatformRepository(
 
     private fun toggleLauncherIcon(useAlt: Boolean) {
         val packageName = application.packageName
-        val main = ComponentName(packageName, "$packageName.ui.MainActivity")
-        val alias = ComponentName(packageName, "$packageName.ui.MainActivityAlias")
+        val main = ComponentName(packageName, "com.resukisu.resukisu.ui.MainActivity")
+        val alias = ComponentName(packageName, "com.resukisu.resukisu.ui.MainActivityAlias")
         application.packageManager.setComponentEnabledSetting(
             if (useAlt) alias else main,
             PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
